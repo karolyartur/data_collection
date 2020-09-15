@@ -57,7 +57,7 @@ def parse_args():
 #  @param args Object for passing the options for the calculations
 def compute(args):
 
-    import ginop
+    import utils
 
 
     def func(a,b):
@@ -66,7 +66,7 @@ def compute(args):
         else:
             return(a/b)
 
-    onlyfiles = ginop.utils.onlyfiles(args.sdir)
+    onlyfiles = utils.onlyfiles(args.sdir)
 
     labels = []
     unlc = []
@@ -139,7 +139,7 @@ def compute(args):
         temp.append(dice_r-prev)
 
     if args.t:
-        onlyfiles = ginop.utils.onlyfiles(os.path.join(args.sdir,'t','m2'))
+        onlyfiles = utils.onlyfiles(os.path.join(args.sdir,'t','m2'))
 
         co = 0
         for file in onlyfiles:
@@ -150,7 +150,7 @@ def compute(args):
             prev_im = np.copy(im)
             co += 1
     
-        onlyfiles_2 = ginop.utils.onlyfiles(os.path.join(args.sdir,'t','m1'))
+        onlyfiles_2 = utils.onlyfiles(os.path.join(args.sdir,'t','m1'))
 
         co_2 = 0
         for file in onlyfiles_2:

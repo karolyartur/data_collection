@@ -115,10 +115,10 @@ def parse_args():
 #
 #  This function loads the model and displays the raw and tresholded predictions
 #  as well as the raw camera image in three separate windows.
-#  @param args Object for passing the options of the model. Use the DS class of ginop.utils module.
+#  @param args Object for passing the options of the model. Use the DS class of utils module.
 def run_test(args):
 
-    import ginop
+    import utils
 
     tf.reset_default_graph()
 
@@ -151,7 +151,7 @@ def run_test(args):
             gray = cv.resize(gray, (args.s,args.s))
             flow = cv.calcOpticalFlowFarneback(prevgray, gray, None, pyr_scale = 0.5, levels = 3, winsize = 15, iterations = 3, poly_n = 5, poly_sigma = 1.2, flags = 0)
             prevgray = gray
-            flow_normalized = ginop.utils.normalize_flow(flow)
+            flow_normalized = utils.normalize_flow(flow)
             gray = (gray-gray.min())/(gray.max()-gray.min())
             gray = np.reshape(gray,(args.s,args.s,1))
             conc_img = np.concatenate((flow_normalized,gray), axis=2)

@@ -36,7 +36,6 @@ def parse_args():
 #  @param args Object for passing the options. Use the VID class of ginop.utils module.
 def record_videos(args):
 
-    import ginop
     vidcap = cv2.VideoCapture(0)
     count = 0
     frame_num = 0

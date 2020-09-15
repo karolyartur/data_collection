@@ -19,6 +19,8 @@ python3 -m venv data_collection
 source data_collection/bin/activate
 cd ../data_collection
 pip install wheel
+pip install --upgrade pip
+pip install --upgrade setuptools
 pip install -r requirements.txt
 
 cd videoseg/lib/pyflow

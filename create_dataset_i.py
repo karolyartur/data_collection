@@ -42,15 +42,15 @@ def parse_args():
 #  This function is used for crafting the optical flow inputs nad the masks from image sequences.
 #  The inputs and masks are stored in separate .npy files in each subdirectory.
 #  The name of directories for the masks and the images have to match.
-#  @param args Object for passing the options of the dataset. Use the DS class of ginop.utils module.
+#  @param args Object for passing the options of the dataset. Use the DS class of utils module.
 def formulate_inputs_masks(args):
 
-    import ginop
+    import utils
 
     d = args.sdir
     data_dirs = os.listdir(d)
     for directory in data_dirs:
-        onlyfiles = ginop.utils.onlyfiles(os.path.join(d,directory))
+        onlyfiles = utils.onlyfiles(os.path.join(d,directory))
         onlyfiles = [f for f in onlyfiles if f.split(os.sep)[-1] != 'inputs.npy' and f.split(os.sep)[-1] != 'masks.npy']
         c = 0
         for file in onlyfiles:
@@ -68,7 +68,7 @@ def formulate_inputs_masks(args):
                 imseq = np.append(imseq, [gray], axis=0)
                 gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None, pyr_scale = 0.5, levels = 3, winsize = 15, iterations = 3, poly_n = 5, poly_sigma = 1.2, flags = 0)
-                flow_normalized = ginop.utils.normalize_flow(flow)
+                flow_normalized = utils.normalize_flow(flow)
                 gray = (gray-gray.min())/(gray.max()-gray.min())
                 gray = np.reshape(gray,(args.s,args.s,1))
                 conc_img = np.concatenate((flow_normalized,gray), axis=2)
@@ -82,7 +82,7 @@ def formulate_inputs_masks(args):
         print('saved inputs to '+ d + '/%s/inputs.npy'  % directory)
 
     for directory in data_dirs:
-        onlyfiles = ginop.utils.onlyfiles(os.path.join(args.tdir,directory))
+        onlyfiles = utils.onlyfiles(os.path.join(args.tdir,directory))
         onlyfiles = [f for f in onlyfiles if f.split(os.sep)[-1] != 'inputs.npy' and f.split(os.sep)[-1] != 'masks.npy']
         c = 0
         for file in onlyfiles:

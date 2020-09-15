@@ -41,12 +41,12 @@ def parse_args():
 ## Create dataset
 #
 #  This function is used for creating a dataset from video sequences
-#  @param args Object for passing the options of the dataset. Use the DS class of ginop.utils module.
+#  @param args Object for passing the options of the dataset. Use the DS class of utils module.
 def create_dataset(args):
 
-    import ginop
-    import ginop.videoseg.src.utils as nlc_utils
-    import ginop.videoseg.src.run_full_mod as nlc
+    import utils
+    import videoseg.src.utils as nlc_utils
+    import videoseg.src.run_full_mod as nlc
 
     if nlc:
         reload(nlc)
@@ -54,7 +54,7 @@ def create_dataset(args):
     vids = []
     dirs = []
 
-    onlyfiles = ginop.utils.onlyfiles(args.sdir)
+    onlyfiles = utils.onlyfiles(args.sdir)
 
     for i in range(len(onlyfiles)):
         directory = args.tdir + '/' + (onlyfiles[i].split(os.sep)[-1].split('.')[0])
@@ -78,7 +78,7 @@ def create_dataset(args):
                     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                     imseq = np.append(imseq, [image], axis=0)
                     flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None, pyr_scale = 0.5, levels = 3, winsize = 15, iterations = 3, poly_n = 5, poly_sigma = 1.2, flags = 0)
-                    flow_normalized = ginop.utils.normalize_flow(flow)
+                    flow_normalized = utils.normalize_flow(flow)
                     gray = (gray-gray.min())/(gray.max()-gray.min())
                     gray = np.reshape(gray,(args.s,args.s,1))
                     conc_img = np.concatenate((flow_normalized,gray), axis=2)
