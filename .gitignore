@@ -3,3 +3,4 @@ data/*
 vids/*
 *.bag
 *.txt
+*.yaml

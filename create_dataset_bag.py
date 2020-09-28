@@ -10,12 +10,14 @@ import os
 import cv2
 import sys
 import json
+import yaml
 import numpy as np
 import pyrealsense2 as rs
 import realsense_input_module as ri
 import ur_tests_module as tests
 from importlib import reload
 from datetime import timedelta
+import egomotion_filter_module as emf
 
 ## Parse command line
 #
@@ -38,6 +40,10 @@ def parse_args():
         '-s', dest='s',
         help='Target size for images in the dataset (s x s). Default is: 299',
         default=299, type=int)
+    parser.add_argument(
+        '-correct', dest='correct',
+        help='Boolean swith to switch emf correction mode on and off. Default is: false (off)',
+        default=False, action='store_true')
 
     args = parser.parse_args()
     return args
@@ -55,6 +61,27 @@ def create_dataset(args, pipeline, playback):
     if nlc:
         reload(nlc)
 
+    # Emf settings
+    step = 16
+    dt = 1.0 / 30 #s
+
+    with open('cam_robot_transform_config.yaml') as file:
+        # The FullLoader parameter handles the conversion from YAML
+        # scalar values to Python the dictionary format
+        reg_params = yaml.load(file, Loader=yaml.FullLoader)
+        R_cam_robot = np.matrix(reg_params.get('R_cam_robot'))
+        t_cam_robot = np.matrix(reg_params.get('t_cam_robot'))
+    print("Camera registration read succesfully!\nR_cam_robot:\n{}\nt_cam_robot:\n{}".format(R_cam_robot,t_cam_robot))
+
+
+    T_cam_robot = np.append(R_cam_robot, t_cam_robot, axis = 1)
+    T_cam_robot = np.append(T_cam_robot, np.matrix('0 0 0 1'), axis = 0)
+
+    R_robot_cam = R_cam_robot.transpose()
+    t_robot_cam = -1.0 * R_robot_cam.dot(t_cam_robot)
+    T_robot_cam = np.append(R_robot_cam, t_robot_cam, axis = 1)
+    T_robot_cam = np.append(T_robot_cam, np.matrix('0 0 0 1'), axis = 0)
+
     counter = 1
     frame_num = 0
 
@@ -66,6 +93,9 @@ def create_dataset(args, pipeline, playback):
     with open('data.txt', 'r') as f:
         robot_states = f.readlines()
         while abs(playback.get_position()*0.001 - playback_duration_in_ms) > 10:
+
+            robot_velocity_at_frame = None
+            robot_ang_velocity_at_frame = None
 
             robot_states_after = next((line for line in robot_states if float(line.split(',')[1])*1000000 > playback.get_position()*0.001))
             if robot_states.index(robot_states_after) != 0:
@@ -100,6 +130,8 @@ def create_dataset(args, pipeline, playback):
             image = color_image
 
             ih,iw,ic = color_image.shape
+            if args.correct:
+                color_image_original = color_image
             color_image=color_image[:,int((iw-ih)/2):int((iw+ih)/2),:]
             color_image = cv2.resize(color_image, (args.s,args.s))
 
@@ -107,11 +139,67 @@ def create_dataset(args, pipeline, playback):
             if frame_num == 0:
                 imseq = np.array([color_image])
                 inputs = np.array([])
+                if args.correct:
+                    imseq_original = np.array([color_image_original])
+
+                    # Align depth to color
+                    depth_frame_prev_aligned = emf.align_depth_to_color(frames_sr300)
+
+                    # Deprojection
+                    deproject_flow_prev = emf.deproject(depth_frame_prev_aligned, step=step)
             else:
+                if args.correct:
+                    prevgray_original = cv2.cvtColor(imseq_original[-1], cv2.COLOR_BGR2GRAY)
+                    gray_original = cv2.cvtColor(color_image_original, cv2.COLOR_BGR2GRAY)
+                    imseq_original = np.append(imseq_original, [color_image_original], axis=0)
+                    flow_original = cv2.calcOpticalFlowFarneback(prevgray_original, gray_original, None, pyr_scale = 0.5, levels = 3, winsize = 15, iterations = 3, poly_n = 5, poly_sigma = 1.2, flags = 0)
                 prevgray = cv2.cvtColor(imseq[-1], cv2.COLOR_BGR2GRAY)
                 gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
                 imseq = np.append(imseq, [color_image], axis=0)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None, pyr_scale = 0.5, levels = 3, winsize = 15, iterations = 3, poly_n = 5, poly_sigma = 1.2, flags = 0)
+                ri.show_imgs('Optical flow', emf.draw_flow(gray, flow.astype(int), step=step), 1)
+                if args.correct:
+                    # Get the previous and the current pixel locations
+                    lines = emf.get_lines(gray_original, flow_original, step=step)
+
+                    # Align depth to color
+                    depth_frame_aligned = emf.align_depth_to_color(frames_sr300)
+
+                    # Deproject the current pixels for 3D optical flow
+                    deproject_flow = emf.deproject_flow_new(depth_frame_aligned, lines, step=step)
+
+                    # Calculate 3D optical flow
+                    diff_flow = emf.flow_3d(deproject_flow, deproject_flow_prev, dt)
+                    diff_flow_robot = emf.transform_velocites(diff_flow, T_robot_cam)
+
+                    if robot_velocity_at_frame is not None and robot_ang_velocity_at_frame is not None:
+                        v_robot = np.matrix([[robot_velocity_at_frame],  [0] , [0]])
+                        omega_robot = np.matrix([[0],  [0] , [robot_ang_velocity_at_frame]])
+
+                        deprojected_coordinates_robot = emf.transform_points(deproject_flow, T_robot_cam)
+
+                        velocities_from_egomotion_robot = \
+                            emf.velocity_from_point_clouds_robot_frame(deprojected_coordinates_robot, \
+                                            v_robot, omega_robot)
+                        
+                        threshold_lower = abs(v_robot[0][0])*0.001
+                        threshold_upper = 0.5
+
+                        egomotion_filtered_flow = \
+                            emf.velocity_comparison(depth_frame_aligned, \
+                                            diff_flow_robot, \
+                                            velocities_from_egomotion_robot, \
+                                            threshold_lower, threshold_upper, step=step)
+
+                        flow = emf.filtered_flow_2d(egomotion_filtered_flow, \
+                                        flow_original, step=step)
+
+                        flow = flow[:,int((iw-ih)/2):int((iw+ih)/2)]
+                        flow = cv2.resize(flow, (299,299))
+
+                        ri.show_imgs('Optical flow filtered', \
+                            emf.draw_flow(gray, flow, step=step), 1)
+                
                 flow_normalized = utils.normalize_flow(flow)
                 gray = (gray-gray.min())/(gray.max()-gray.min())
                 gray = np.reshape(gray,(args.s,args.s,1))
@@ -121,6 +209,10 @@ def create_dataset(args, pipeline, playback):
                     inputs = np.array([conc_img])
                 else:
                     inputs = np.append(inputs, [conc_img], axis=0)
+
+                if args.correct:
+                    deproject_flow_prev = deproject_flow
+                    depth_frame_prev_aligned = depth_frame_aligned
             
                 cv2.imwrite('%s/imgs/input%s.jpg' % (directory,str(frame_num).zfill(5)), cv2.cvtColor((conc_img*255).astype(np.uint8),cv2.COLOR_RGB2BGR))
             cv2.imwrite('%s/imgs/frame%s.jpg' % (directory,str(frame_num).zfill(5)), color_image)
@@ -145,7 +237,7 @@ def create_dataset(args, pipeline, playback):
             # Show images
             ri.show_imgs('SR300', images, 1)
     
-    cv2.destroyWindow('SR300')
+    cv2.destroyAllWindows()
     masks = nlc.demo_images(vids=vids)
     for i in range(len(vids)):
         nlc_utils.im2vid('%s/video/vid.avi' % dirs[i], vids[i], masks[i])
