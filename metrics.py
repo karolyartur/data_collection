@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Compute metrics for a set of segmented images
 #
 #  This module was used to compute the comparison metrics of the predictions
@@ -51,7 +51,7 @@ def parse_args():
     return args
 
 
-## Create dataset
+## Compute metrics
 #
 #  This function is used for compute the comparison metrics for a set of images.
 #  @param args Object for passing the options for the calculations

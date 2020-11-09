@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Create dataset from bag_file
 #
 #  This module can be used to create the dataset from the recorded bag files
@@ -53,6 +53,8 @@ def parse_args():
 #
 #  This function is used for creating a dataset from bag files
 #  @param args Object for passing the options of the dataset.
+#  @param pipeline Pipeline object from the Realsense SDK
+#  @param playback Playback object from the Realsense SDK
 def create_dataset(args, pipeline, playback):
 
     import utils
@@ -90,7 +92,7 @@ def create_dataset(args, pipeline, playback):
     vids = []
     dirs = []
 
-    with open('data.txt', 'r') as f:
+    with open('data_correct.txt', 'r') as f:
         robot_states = f.readlines()
         while abs(playback.get_position()*0.001 - playback_duration_in_ms) > 10:
 
@@ -104,12 +106,11 @@ def create_dataset(args, pipeline, playback):
                 timestamp_of_frame = playback.get_position()*0.001
                 timestamp_after = float(robot_states_after.split(',')[1])*1000000
                 robot_states_before = json.loads(robot_states_before.split(',')[0].replace(' ', ','))
+                print(robot_states_after.split(',')[0])
                 robot_states_after = json.loads(robot_states_after.split(',')[0].replace(' ', ','))
                 ratio = (timestamp_of_frame - timestamp_before) / (timestamp_after - timestamp_before)
                 robot_velocity_at_frame = ratio * (robot_states_after[3] - robot_states_before[3]) + robot_states_before[3]
                 robot_ang_velocity_at_frame = ratio * (robot_states_after[4] - robot_states_before[4]) + robot_states_before[4]
-                # print('Before: ' + str(timestamp_before) + ', Frame: ' + str(timestamp_of_frame) + ', After: ' + str(timestamp_after))
-                # print('Vel. before: ' + str(robot_states_before[3]) + ', Vel. after: ' + str(robot_states_after[3]) + ', Vel: ' + str(robot_velocity_at_frame))
 
             directory = os.path.join(args.tdir,str(counter).zfill(5))
             if not os.path.exists(directory):

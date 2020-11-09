@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Create dataset from images
 #
 #  This module was used to create the modified dataset from the DAVIS dataset

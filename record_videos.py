@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Record videos for creating labeled data for the training of the network
 #
 #  This module can be used to record video sequences for creating the training data from

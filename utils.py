@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Util module
 #
 #  This module contains utility functions for the package.

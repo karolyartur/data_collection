@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  Create dataset from videos
 #
 #  This module was used to create the dataset from the recorded video sequences
