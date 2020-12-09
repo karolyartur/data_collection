@@ -1,5 +1,5 @@
 ## 
-#  @package egomotion_filter_module
+## @package data_collection
 #  Functions for optical flow egomotion filtering support.
 
 

@@ -1,5 +1,5 @@
 ## 
-#  @package realsense_intrinsics_module
+## @package data_collection
 #  Functions for intrisics support
 
 

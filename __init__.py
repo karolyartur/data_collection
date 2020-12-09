@@ -1,4 +1,4 @@
-## @package ginop
+## @package data_collection
 #  __init__ module
 #
 #  This module imports other modules when the package is imported.
